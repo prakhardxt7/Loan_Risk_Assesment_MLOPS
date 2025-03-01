@@ -8,21 +8,22 @@ import pandas as pd
 import sys
 import os
 from pathlib import Path
-# # Adding the below path to avoid module not found error
+
+# Adding the below path to avoid module not found error
 PACKAGE_ROOT = Path(os.path.abspath(os.path.dirname(__file__))).parent
 sys.path.append(str(PACKAGE_ROOT))
 
-# # Then perform import
+# Import custom modules
 from prediction_model.config import config 
-from prediction_model.processing.data_handling import load_pipeline,load_dataset,separate_data
+from prediction_model.processing.data_handling import load_pipeline, load_dataset, separate_data
 
+# Load the trained classification pipeline
 classification_pipeline = load_pipeline(config.MODEL_NAME)
 
+# Initialize FastAPI app
 app = FastAPI()
 
-
-
-#Perform parsing
+# Define request model
 class LoanPred(BaseModel):
     Dependents: int 
     Education: str 
@@ -36,41 +37,43 @@ class LoanPred(BaseModel):
     Luxury_Assets_Value: int 
     Bank_Asset_Value: int 
 
-
-@app.get('/')
+# Root endpoint
+@app.get("/")
 def index():
-    return {'message': 'Welcome to Loan Prediction App'}
+    return {"message": "Welcome to Loan Prediction App"}
 
-# defining the function which will make the prediction using the data which the user inputs 
-@app.post('/predict')
+# Prediction endpoint
+@app.post("/predict")
 def predict_loan_status(loan_details: LoanPred):
-	data = loan_details.model_dump()
-	new_data = {
-    'no_of_dependents': data['Dependents'],
-    'education': data['Education'],
-    'self_employed': data['Self_Employed'],
-    'income_annum': data['TotalIncome'],
-    'loan_amount': data['LoanAmount'],
-    'loan_term': data['Loan_Amount_Term'],
-    'cibil_score': data['Credit_History'],
-    'residential_assets_value': data['Residential_Assets_Value'],
-    'commercial_assets_value': data['Commercial_Assets_Value'],
-    'luxury_assets_value': data['Luxury_Assets_Value'],
-    'bank_asset_value': data['Bank_Asset_Value']
-	}
+    # Convert input data to dictionary
+    data = loan_details.model_dump()
 
-# Create a DataFrame with a single row from the new_data dictionary
-	df = pd.DataFrame([new_data])
+    # Transform input data to match model features
+    new_data = {
+        "no_of_dependents": data["Dependents"],
+        "education": data["Education"],
+        "self_employed": data["Self_Employed"],
+        "income_annum": data["TotalIncome"],
+        "loan_amount": data["LoanAmount"],
+        "loan_term": data["Loan_Amount_Term"],
+        "cibil_score": data["Credit_History"],
+        "residential_assets_value": data["Residential_Assets_Value"],
+        "commercial_assets_value": data["Commercial_Assets_Value"],
+        "luxury_assets_value": data["Luxury_Assets_Value"],
+        "bank_asset_value": data["Bank_Asset_Value"]
+    }
 
-	# Making predictions 
-	prediction = classification_pipeline.predict(df)
+    # Create DataFrame
+    df = pd.DataFrame([new_data])
 
-	if prediction[0] == 0:
-		pred = 'Rejected'
-	else:
-		pred = 'Approved'
+    # Make prediction
+    prediction = classification_pipeline.predict(df)
 
-	return {'Status of Loan Application':pred}
+    # Determine loan status
+    pred = "Approved" if prediction[0] == 1 else "Rejected"
 
-if __name__ == '__main__':
-	uvicorn.run(app, host='127.0.0.1', port=8080)
+    return {"Status of Loan Application": pred}
+
+# Run the application using `python main.py`
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8080, reload=True)
